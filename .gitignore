@@ -7,7 +7,8 @@ __pycache__/
 *.so
 
 # Distribution / packaging
-.Python
+.Pythongit remote add origin git@github.com:davidjipp/dino-racer.git
+
 build/
 develop-eggs/
 dist/

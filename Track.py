@@ -4,7 +4,7 @@ import random
 class TrackHazard:
     def __init__(self, name, mod, desc):
         self.name = name
-        self.mod = mod
+        self.mod = int(mod)
         self.desc = desc
 
     def __repr__(self):

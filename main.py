@@ -19,7 +19,7 @@ racers = []
 
 
 def load_jockeys():
-    with open("data/jockeys", "r") as f:
+    with open("data/jockeys", "r", encoding="utf-8") as f:
         for line in f:
             name, control = line.strip().split(",")
             jockey = Jockey(name, control)
@@ -27,7 +27,7 @@ def load_jockeys():
 
 
 def load_dinos():
-    with open("data/dinos", "r") as f:
+    with open("data/dinos", "r", encoding="utf-8") as f:
         for line in f:
             name, dinotype, ferocity, speed = line.strip().split(",")
             dino = Dino(name, dinotype, ferocity, speed)
@@ -35,9 +35,19 @@ def load_dinos():
 
 
 def assign_racers():
+    # truncate jockey/dino lists to only num_participants
+    global jockeys, dinos
+
+    # randomize jockey/dino pairing
+    random.shuffle(jockeys)
+    random.shuffle(dinos)
+
+    jockeys, dinos = jockeys[:num_participants], dinos[:num_participants]
     for jockey, dino in zip(jockeys, dinos):
         racer = Racer(jockey, dino)
         racers.append(racer)
+        racer.placements = [0] * (num_participants + 1)  # one-indexed
+        racer.placements[0] = -1  # sentinel value, there should not be a 0th place
 
 
 def generate_track():
@@ -77,37 +87,67 @@ def control_check(jockey, dino, track_modifier=0) -> bool:
 
 
 def run_simulation(hazards):
-    for race in range(NUM_RACES):
+    run_race(hazards)
 
+
+def run_race(hazards, num_races=NUM_RACES, verbose=False):
+    for race in range(num_races):
         for segment_num in range(NUM_SEGMENTS):
+            if verbose:
+                print(f"segment {segment_num+1}, hazard: {hazards[segment_num].name}, desc: {hazards[segment_num].desc}")
             for racer in racers:
                 jockey = racer.jockey
                 dino = racer.dino
 
                 if control_check(jockey, dino, hazards[segment_num].mod):
                     racer.distance += dino.speed
-                    racer.distances.append(racer.distance)
+                racer.distances.append(racer.distance)
 
-        # TODO: after 1 race, sort racers by distance and create placements
-        for racer in racers:
-            print(racer)
+                if verbose:
+                    print(racer)
+            if verbose:
+                input()
 
-        input()
+        # selection sort - sort racers list in place
+        for i in range(len(racers)):
+            max_index = i
+            for j in range(i + 1, len(racers)):
+                if racers[max_index] < racers[j]:
+                    max_index = j
 
-        # reset racers
-        for racer in racers:
+            # swap max_index with position of newest max
+            racers[i], racers[max_index] = racers[max_index], racers[i]
+
+        if verbose:
+            print("race results:")
+            for i, racer in enumerate(racers):
+                print(f"    place {i+1}: {racer}")
+
+        # update placement and reset racers
+        for i in range(len(racers)):
+            racer = racers[i]
+            racer.placements[i + 1] += 1
             racer.distance = 0
             racer.distances = []
 
+    # simulation over. calculate percentages of placement
+    for racer in racers:
+        s = f"{racer.jockey.name} {racer.dino.name}"
+        for placement in range(1, num_participants + 1):
+            s += f", {placement}: {racer.placements[placement] / NUM_RACES * 100:.0f}%"
 
-    # race is over. calculate the placements
-    input("calculating placements... ")
-
-    # calculate percentages of placement
+        print(s)
 
 
 def reroll():
-    print("reroll")
+    global jockeys, dinos, racers
+    jockeys = []
+    dinos = []
+    racers = []
+
+    load_jockeys()
+    load_dinos()
+    assign_racers()
 
 
 def display_pairings():
@@ -187,10 +227,6 @@ def display_pairings():
 
 def prompt_user(param):
     choice = input(param)
-    # if choice == "y":
-    #     return True
-    # return False
-
     return choice == "y"
 
 
@@ -203,17 +239,15 @@ def main():
     load_dinos()
     assign_racers()
 
-    # while True:
-    #     # print jockey/dino pairings and track
-    display_pairings()
-    #     # prompt user to reroll stats
-    #     prompt_user("do you want to reroll? [y/N]> ")
-    #     if False:
-    #         # if prompt_user("do you want to reroll? [y/N] >"):
-    #         #     # start simulation? Y - simulation, N - reroll
-    #         reroll()
-    #     else:
-    #         break
+    while True:
+        # print jockey/dino pairings and track
+        display_pairings()
+        # prompt user to reroll stats
+        if prompt_user("do you want to reroll? [y/N] > "):
+            # start simulation? Y - simulation, N - reroll
+            reroll()
+        else:
+            break
 
     run_simulation(hazards)
 
@@ -222,11 +256,12 @@ def main():
     # perform this 100x, record results (record odds)
 
     # prompt user to start actual race
-    prompt_user("do you want to start the race?")
+    while True:
+        if prompt_user("do you want to start the race? [y/N] > "):
+            break
 
-    # pass
+    run_race(hazards, 1, True)
 
 
 if __name__ == '__main__':
-    # display_pairings()
     main()
